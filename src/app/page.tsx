@@ -1,32 +1,59 @@
-"use client"
+"use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+
+interface Todo {
+  id: string;
+  todo: string;
+  isCompleted: boolean;
+  createdAt: string;
+}
 
 export default function Home() {
-  const [todos, setTodos] = useState<string[]>([]);
-
+  // declaring variable for state
+  const [todos, setTodos] = useState<Todo[]>([]);
   const [input, setInput] = useState("");
 
+  // init state
+  useEffect(() => {
+    const fetchTodos = async () => {
+      const res = await fetch("/api/todo");
+      const data: Todo[] = await res.json();
+      setTodos(data);
+    };
+    fetchTodos();
+  }, []);
+
+  // methods
   const addTodo = () => {
     if (!input.trim()) return;
 
-    setTodos([...todos, input]);
+    const newTodo: Todo = {
+      id: crypto.randomUUID(),
+      todo: input,
+      isCompleted: false,
+      createdAt: new Date().toISOString(),
+    };
+
+    setTodos([...todos, newTodo]);
     setInput("");
-  }
+  };
 
   const removeTodo = (index: number) => {
     setTodos(todos.filter((_, i) => i !== index));
-  }
+  };
 
   return (
     <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
       <main className="flex flex-col gap-6 row-start-2 items-center sm:items-start">
         <h1 className="text-2xl font-bold">Todo App</h1>
 
-        <form onSubmit={(e) => {
-          e.preventDefault();
-          addTodo();
-        }}>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            addTodo();
+          }}
+        >
           <div className="flex gap-2">
             <input
               type="text"
@@ -36,13 +63,19 @@ export default function Home() {
               placeholder="Enter todo"
             />
             <button
-              onClick={addTodo}
+              // onClick={addTodo}
               className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600"
             >
               Add
             </button>
           </div>
         </form>
+
+        {todos.length === 0 && (
+          <div className="text-gray-500 text-center py-8">
+            <p>No todos yet. Add one above to get started!</p>
+          </div>
+        )}
 
         <ul className="list-disc  space-y-2">
           {todos.map((todo, index) => (
@@ -54,7 +87,13 @@ export default function Home() {
                 <div className="flex items-center justify-center w-8 h-8 bg-blue-100 text-blue-600 rounded-full font-medium">
                   {index + 1}
                 </div>
-                <span className="text-gray-800 break-words">{todo}</span>
+                <span className="text-gray-800 break-words">{todo.todo}</span>
+                <input
+                  type="checkbox"
+                  checked={todo.isCompleted}
+                  readOnly
+                  className="ml-4"
+                />
               </div>
 
               <button
@@ -71,5 +110,3 @@ export default function Home() {
     </div>
   );
 }
-
-
