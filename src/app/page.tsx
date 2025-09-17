@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import SimpleModal from "./components/SimpleModal";
 
 interface Todo {
   id: string;
@@ -13,6 +14,8 @@ export default function Home() {
   // declaring variable for state
   const [todos, setTodos] = useState<Todo[]>([]);
   const [input, setInput] = useState("");
+
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   // init state
   useEffect(() => {
@@ -27,6 +30,12 @@ export default function Home() {
   // methods
   const addTodo = () => {
     if (!input.trim()) return;
+
+    // check if input is duplicate
+    if (todos.some((todo) => todo.todo.toLowerCase() === input.toLowerCase())) {
+      setIsModalOpen(true);
+      return;
+    }
 
     const newTodo: Todo = {
       id: crypto.randomUUID(),
@@ -106,6 +115,14 @@ export default function Home() {
             </li>
           ))}
         </ul>
+
+        <SimpleModal
+          isOpen={isModalOpen}
+          onClose={function (): void {
+            setIsModalOpen(false);
+          }}
+          title={"Duplicate Item"}
+        ></SimpleModal>
       </main>
     </div>
   );
