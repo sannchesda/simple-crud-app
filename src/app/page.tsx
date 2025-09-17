@@ -17,12 +17,22 @@ export default function Home() {
 
   const [isModalOpen, setIsModalOpen] = useState(false);
 
+  const [status, setStatus] = useState<"loading" | "done" | "error">("loading");
+
   // init state
   useEffect(() => {
+    setStatus("loading");
     const fetchTodos = async () => {
-      const res = await fetch("/api/todo");
-      const data: Todo[] = await res.json();
-      setTodos(data);
+      try {
+        const res = await fetch("/api/todo");
+        const data: Todo[] = await res.json();
+        setTodos(data);
+      } catch (error) {
+        console.error("Failed to fetch todos:", error);
+        setStatus("error");
+      } finally {
+        setStatus("done");
+      }
     };
     fetchTodos();
   }, []);
@@ -71,22 +81,23 @@ export default function Home() {
               className="border rounded px-2 py-1"
               placeholder="Enter todo"
             />
-            <button
-              // onClick={addTodo}
-              className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600"
-            >
+            <button className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600">
               Add
             </button>
           </div>
         </form>
 
-        {todos.length === 0 && (
-          <div className="text-gray-500 text-center py-8">
-            <p>No todos yet. Add one above to get started!</p>
+        <ul className="list-disc space-y-2">
+          <div className="text-gray-500 text-center">
+            {status == "loading" ? (
+              <p>Loading...</p>
+            ) : status == "error" ? (
+              <p className="text-red-500">Failed to load todos</p>
+            ) : todos.length === 0 ? (
+              <p>No todos yet. Add one above to get started!</p>
+            ) : null}
           </div>
-        )}
 
-        <ul className="list-disc  space-y-2">
           {todos.map((todo, index) => (
             <li
               key={index}
