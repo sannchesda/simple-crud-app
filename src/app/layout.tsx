@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Todo Apps",
-  description: "Coding Assignment",
+  title: "✨ Todo Magic - Transform Your Tasks",
+  description: "A beautiful and modern todo application with dark mode support",
 };
 
 export default function RootLayout({
