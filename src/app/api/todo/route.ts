@@ -1,20 +1,45 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { TodoStore, TodoItem } from "./todoStore";
 
 export async function GET() {
-  const todos = [
-    {
-      id: "1",
-      todo: "Learn Next.js",
-      isCompleted: false,
-      createdAt: new Date().toISOString(),
-    },
-    {
-      id: "2",
-      todo: "Build a Todo App",
-      isCompleted: true,
-      createdAt: new Date().toISOString(),
-    },
-  ];
+  return NextResponse.json(TodoStore.getAll());
+}
 
-  return NextResponse.json(todos);
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const { id, todo, isCompleted, createdAt } = body;
+
+    // Validate required fields
+    if (!id || !todo || isCompleted === undefined || !createdAt) {
+      return NextResponse.json(
+        { error: "Missing required fields: id, todo, isCompleted, createdAt" },
+        { status: 400 }
+      );
+    }
+
+    // Check if todo with this id already exists
+    if (TodoStore.exists(id)) {
+      return NextResponse.json(
+        { error: "Todo with this id already exists" },
+        { status: 409 }
+      );
+    }
+
+    const newTodo: TodoItem = {
+      id,
+      todo,
+      isCompleted,
+      createdAt
+    };
+
+    TodoStore.create(newTodo);
+
+    return NextResponse.json({ success: true }, { status: 201 });
+  } catch (error) {
+    return NextResponse.json(
+      { error: "Invalid JSON format" },
+      { status: 400 }
+    );
+  }
 }
