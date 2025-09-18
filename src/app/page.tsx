@@ -262,7 +262,7 @@ export default function Home() {
             return (
               <li
                 key={todo.id}
-                className="flex justify-between items-center bg-white/80 backdrop-blur-sm shadow-sm rounded-md px-4 py-2 w-full transition-shadow hover:shadow-md"
+                className="flex justify-between items-center bg-white/80 backdrop-blur-sm shadow-sm rounded-md px-4 py-2 w-full transition-shadow hover:shadow-md group"
               >
                 {/* left side */}
                 <div className="flex items-center gap-3">
@@ -292,7 +292,7 @@ export default function Home() {
                       className="border rounded px-2 py-1"
                     />
                   ) : (
-                    <span className="text-gray-800 break-words">
+                    <span className={`text-gray-800 break-words ${todo.isCompleted ? 'line-through text-gray-500' : ''}`}>
                       {todo.todo}
                     </span>
                   )}
@@ -317,7 +317,7 @@ export default function Home() {
                 </div>
 
                 {/* right side */}
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                   {isEditing ? (
                     <SimpleButton
                       label={isEditingLoading ? "Saving..." : "Save"}
