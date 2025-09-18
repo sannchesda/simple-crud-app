@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import SimpleModal from "./components/SimpleModal";
+import SimpleButton from "./components/SimpleButton";
 
 interface Todo {
   id: string;
@@ -9,6 +10,7 @@ interface Todo {
   isCompleted: boolean;
   createdAt: string;
   status: "editing" | "viewing";
+  draft?: string; // for editing mode
 }
 
 export default function Home() {
@@ -20,9 +22,15 @@ export default function Home() {
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const [status, setStatus] = useState<"loading" | "done" | "error">("loading");
+  const [loadingStates, setLoadingStates] = useState<{
+    adding: boolean;
+    [key: string]: boolean; // For individual todo operations
+  }>({
+    adding: false,
+  });
 
   // Filter todos based on input
-  const filteredTodos = todos.filter(todo => 
+  const filteredTodos = todos.filter((todo) =>
     todo.todo.toLowerCase().includes(filter.toLowerCase())
   );
 
@@ -33,7 +41,7 @@ export default function Home() {
       try {
         const res = await fetch("/api/todo");
         const data: Todo[] = await res.json();
-        setTodos(data.map(todo => ({ ...todo, status: "viewing" as const })));
+        setTodos(data.map((todo) => ({ ...todo, status: "viewing" as const })));
       } catch (error) {
         console.error("Failed to fetch todos:", error);
         setStatus("error");
@@ -46,7 +54,7 @@ export default function Home() {
 
   // methods
   const addTodo = async () => {
-    if (!input.trim()) return;
+    if (!input.trim() || loadingStates.adding) return;
 
     // check if input is duplicate
     if (todos.some((todo) => todo.todo.toLowerCase() === input.toLowerCase())) {
@@ -62,6 +70,8 @@ export default function Home() {
     };
 
     try {
+      setLoadingStates((prev) => ({ ...prev, adding: true }));
+
       const response = await fetch("/api/todo", {
         method: "POST",
         headers: {
@@ -74,7 +84,7 @@ export default function Home() {
         // Refresh the todos list from the server
         const res = await fetch("/api/todo");
         const data: Todo[] = await res.json();
-        setTodos(data.map(todo => ({ ...todo, status: "viewing" as const })));
+        setTodos(data.map((todo) => ({ ...todo, status: "viewing" as const })));
         setInput("");
         setFilter("");
       } else {
@@ -82,13 +92,20 @@ export default function Home() {
       }
     } catch (error) {
       console.error("Error adding todo:", error);
+    } finally {
+      setLoadingStates((prev) => ({ ...prev, adding: false }));
     }
   };
 
   const removeTodo = async (index: number) => {
     const todoToRemove = todos[index];
-    
+    const loadingKey = `deleting-${todoToRemove.id}`;
+
+    if (loadingStates[loadingKey]) return;
+
     try {
+      setLoadingStates((prev) => ({ ...prev, [loadingKey]: true }));
+
       const response = await fetch(`/api/todo/${todoToRemove.id}`, {
         method: "DELETE",
       });
@@ -97,19 +114,26 @@ export default function Home() {
         // Refresh the todos list from the server
         const res = await fetch("/api/todo");
         const data: Todo[] = await res.json();
-        setTodos(data.map(todo => ({ ...todo, status: "viewing" as const })));
+        setTodos(data.map((todo) => ({ ...todo, status: "viewing" as const })));
       } else {
         console.error("Failed to delete todo");
       }
     } catch (error) {
       console.error("Error deleting todo:", error);
+    } finally {
+      setLoadingStates((prev) => ({ ...prev, [loadingKey]: false }));
     }
   };
 
   const editTodo = async (index: number, newTodoText: string) => {
     const todoToUpdate = todos[index];
-    
+    const loadingKey = `editing-${todoToUpdate.id}`;
+
+    if (loadingStates[loadingKey]) return;
+
     try {
+      setLoadingStates((prev) => ({ ...prev, [loadingKey]: true }));
+
       const response = await fetch(`/api/todo/${todoToUpdate.id}`, {
         method: "PUT",
         headers: {
@@ -127,19 +151,33 @@ export default function Home() {
         // Refresh the todos list from the server
         const res = await fetch("/api/todo");
         const data: Todo[] = await res.json();
-        setTodos(data.map(todo => ({ ...todo, status: "viewing" as const })));
+        setTodos(data.map((todo) => ({ ...todo, status: "viewing" as const })));
       } else {
         console.error("Failed to update todo");
       }
     } catch (error) {
       console.error("Error updating todo:", error);
+    } finally {
+      setLoadingStates((prev) => ({ ...prev, [loadingKey]: false }));
     }
+  };
+
+  const startEditing = (index: number) => {
+    const updated = [...todos];
+    updated[index].status = "editing";
+    updated[index].draft = updated[index].todo; // copy original text
+    setTodos(updated);
   };
 
   const toggleComplete = async (index: number) => {
     const todoToToggle = todos[index];
-    
+    const loadingKey = `toggling-${todoToToggle.id}`;
+
+    if (loadingStates[loadingKey]) return;
+
     try {
+      setLoadingStates((prev) => ({ ...prev, [loadingKey]: true }));
+
       const response = await fetch(`/api/todo/${todoToToggle.id}`, {
         method: "PUT",
         headers: {
@@ -157,12 +195,14 @@ export default function Home() {
         // Refresh the todos list from the server
         const res = await fetch("/api/todo");
         const data: Todo[] = await res.json();
-        setTodos(data.map(todo => ({ ...todo, status: "viewing" as const })));
+        setTodos(data.map((todo) => ({ ...todo, status: "viewing" as const })));
       } else {
         console.error("Failed to toggle todo completion");
       }
     } catch (error) {
       console.error("Error toggling todo completion:", error);
+    } finally {
+      setLoadingStates((prev) => ({ ...prev, [loadingKey]: false }));
     }
   };
 
@@ -188,8 +228,11 @@ export default function Home() {
               className="border rounded px-2 py-1"
               placeholder="Enter todo"
             />
-            <button className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600">
-              Add
+            <button
+              className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={loadingStates.adding}
+            >
+              {loadingStates.adding ? "Adding..." : "Add"}
             </button>
           </div>
         </form>
@@ -207,76 +250,105 @@ export default function Home() {
             ) : null}
           </div>
 
-          {filteredTodos.map((todo, index) => {
-            // Get the original index from the todos array for proper state management
-            const originalIndex = todos.findIndex(t => t.id === todo.id);
-            return (
-            <li
-              key={todo.id}
-              className="flex justify-between items-center bg-white/80 backdrop-blur-sm shadow-sm rounded-md px-4 py-2 w-full transition-shadow hover:shadow-md"
-            >
-              <div className="flex items-center gap-3">
-                <div className="flex items-center justify-center w-8 h-8 bg-blue-100 text-blue-600 rounded-full font-medium">
-                  {originalIndex + 1}
-                </div>
-                {todo.status === "editing" ? (
-                  <input
-                    type="text"
-                    value={todo.todo}
-                    onChange={(e) => {
-                      editTodo(originalIndex, e.target.value);
-                    }}
-                    className="border rounded px-2 py-1"
-                  />
-                ) : (
-                  <span className="text-gray-800 break-words">{todo.todo}</span>
-                )}
-                <button
-                  onClick={() => toggleComplete(originalIndex)}
-                  className={`ml-4 px-3 py-1 rounded text-sm font-medium transition ${
-                    todo.isCompleted 
-                      ? "bg-green-100 text-green-700 hover:bg-green-200" 
-                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                  }`}
-                  aria-label={`Mark todo ${originalIndex + 1} as ${
-                    todo.isCompleted ? "incomplete" : "complete"
-                  }`}
-                >
-                  {todo.isCompleted ? "Mark Incomplete" : "Mark Complete"}
-                </button>
-              </div>
+          {filteredTodos.map((todo) => {
+            // find original index in todos
+            const originalIndex = todos.findIndex((t) => t.id === todo.id);
 
-              {todo.status === "editing" ? (
-                <button
-                  onClick={() => {
-                    editTodo(originalIndex, todo.todo);
-                  }}
-                  aria-label={`Save todo ${originalIndex + 1}`}
-                  className="inline-flex items-center gap-2 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/30 px-2 py-1 rounded focus:outline-none focus:ring-2 focus:ring-green-200 transition"
-                >
-                  <span className="text-sm">Save</span>
-                </button>
-              ) : (
-                <button
-                  onClick={() => {
-                    const updatedTodos = [...todos];
-                    updatedTodos[originalIndex].status = "editing";
-                    setTodos(updatedTodos);
-                  }}
-                  aria-label={`Edit todo ${originalIndex + 1}`}
-                  className="inline-flex items-center gap-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 px-2 py-1 rounded focus:outline-none focus:ring-2 focus:ring-blue-200 transition"
-                >
-                  <span className="text-sm">Edit</span>
-                </button>
-              )}
-              <button
-                onClick={() => removeTodo(originalIndex)}
-                aria-label={`Remove todo ${originalIndex + 1}`}
-                className="inline-flex items-center gap-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 px-2 py-1 rounded focus:outline-none focus:ring-2 focus:ring-red-200 transition"
+            const isEditing = todo.status === "editing";
+            const isToggling = loadingStates[`toggling-${todo.id}`];
+            const isEditingLoading = loadingStates[`editing-${todo.id}`];
+            const isDeleting = loadingStates[`deleting-${todo.id}`];
+
+            return (
+              <li
+                key={todo.id}
+                className="flex justify-between items-center bg-white/80 backdrop-blur-sm shadow-sm rounded-md px-4 py-2 w-full transition-shadow hover:shadow-md"
               >
-                <span className="text-sm">Remove</span>
-              </button>
-            </li>
+                {/* left side */}
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center justify-center w-8 h-8 bg-blue-100 text-blue-600 rounded-full font-medium">
+                    {originalIndex + 1}
+                  </div>
+
+                  {isEditing ? (
+                    <input
+                      type="text"
+                      value={todo.draft}
+                      onChange={(e) => {
+                        const updated = [...todos];
+                        updated[originalIndex].draft = e.target.value; // update local draft only
+                        setTodos(updated);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          editTodo(originalIndex, todo.draft || todo.todo);
+                        } else if (e.key === "Escape") {
+                          const updated = [...todos];
+                          updated[originalIndex].status = "viewing";
+                          updated[originalIndex].draft = undefined;
+                          setTodos(updated);
+                        }
+                      }}
+                      className="border rounded px-2 py-1"
+                    />
+                  ) : (
+                    <span className="text-gray-800 break-words">
+                      {todo.todo}
+                    </span>
+                  )}
+
+                  {/* toggle complete */}
+                  <SimpleButton
+                    label={
+                      isToggling
+                        ? "Updating..."
+                        : todo.isCompleted
+                        ? "Mark Incomplete"
+                        : "Mark Complete"
+                    }
+                    onClick={() => toggleComplete(originalIndex)}
+                    disabled={isToggling}
+                    textColor={
+                      todo.isCompleted
+                        ? "bg-green-100 text-green-700 hover:bg-green-200"
+                        : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                    }
+                  />
+                </div>
+
+                {/* right side */}
+                <div className="flex items-center gap-2">
+                  {isEditing ? (
+                    <SimpleButton
+                      label={isEditingLoading ? "Saving..." : "Save"}
+                      onClick={() =>
+                        editTodo(originalIndex, todo.draft || todo.todo)
+                      }
+                      disabled={isEditingLoading}
+                      textColor="text-green-600"
+                    />
+                  ) : (
+                    <SimpleButton
+                      label="Edit"
+                      onClick={() => {
+                        const updated = [...todos];
+                        updated[originalIndex].status = "editing";
+                        updated[originalIndex].draft =
+                          updated[originalIndex].todo; // copy original text
+                        setTodos(updated);
+                      }}
+                      disabled={isEditingLoading || isToggling || isDeleting}
+                    />
+                  )}
+
+                  <SimpleButton
+                    onClick={() => removeTodo(originalIndex)}
+                    disabled={isDeleting}
+                    label={isDeleting ? "Removing..." : "Remove"}
+                    textColor="text-red-600"
+                  />
+                </div>
+              </li>
             );
           })}
         </ul>
