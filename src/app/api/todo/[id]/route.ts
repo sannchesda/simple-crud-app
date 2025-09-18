@@ -19,7 +19,11 @@ export async function PUT(
     }
 
     // Update the todo
-    const success = TodoStore.update(id, { todo, isCompleted, createdAt });
+    const success = await TodoStore.update(id, {
+      todo,
+      isCompleted,
+      createdAt,
+    });
 
     if (!success) {
       return NextResponse.json({ error: "Todo not found" }, { status: 404 });
@@ -39,7 +43,7 @@ export async function DELETE(
     const { id } = await params;
 
     // Delete the todo
-    const success = TodoStore.delete(id);
+    const success = await TodoStore.delete(id);
 
     if (!success) {
       return NextResponse.json({ error: "Todo not found" }, { status: 404 });

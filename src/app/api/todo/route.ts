@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { TodoStore, TodoItem } from "./todoStore";
 
 export async function GET() {
-  return NextResponse.json(TodoStore.getAll());
+  return NextResponse.json(await TodoStore.getAll());
 }
 
 export async function POST(request: NextRequest) {
@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if todo with this id already exists
-    if (TodoStore.exists(id)) {
+    if (await TodoStore.exists(id)) {
       return NextResponse.json(
         { error: "Todo with this id already exists" },
         { status: 409 }
@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
       createdAt
     };
 
-    TodoStore.create(newTodo);
+    await TodoStore.create(newTodo);
 
     return NextResponse.json({ success: true }, { status: 201 });
   } catch (error) {

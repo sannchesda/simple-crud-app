@@ -1,5 +1,16 @@
-// Simple in-memory data store for todos
-// In a real application, this would be replaced with a database
+import {
+  collection,
+  doc,
+  getDocs,
+  getDoc,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  query,
+  orderBy,
+  setDoc,
+} from "firebase/firestore";
+import { db } from "../../firebase";
 
 export interface TodoItem {
   id: string;
@@ -8,52 +19,71 @@ export interface TodoItem {
   createdAt: string;
 }
 
-// In-memory storage (will reset when server restarts)
-let todos: TodoItem[] = [
-  {
-    id: "1",
-    todo: "Learn Next.js",
-    isCompleted: false,
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: "2",
-    todo: "Build a Todo App",
-    isCompleted: true,
-    createdAt: new Date().toISOString(),
-  },
-];
+const COLLECTION_NAME = "todos";
 
 export const TodoStore = {
-  getAll: (): TodoItem[] => {
-    return todos;
+  getAll: async (): Promise<TodoItem[]> => {
+    const q = query(
+      collection(db, COLLECTION_NAME),
+      orderBy("createdAt", "desc")
+    );
+    const querySnapshot = await getDocs(q);
+    const result = querySnapshot.docs.map(
+      (doc) =>
+        ({
+          id: doc.id,
+          ...doc.data(),
+        } as TodoItem)
+    );
+
+    return result ?? [];
   },
 
-  findById: (id: string): TodoItem | undefined => {
-    return todos.find(todo => todo.id === id);
+  findById: async (id: string): Promise<TodoItem | undefined> => {
+    const docRef = doc(db, COLLECTION_NAME, id);
+    const docSnap = await getDoc(docRef);
+
+    if (docSnap.exists()) {
+      return { id: docSnap.id, ...docSnap.data() } as TodoItem;
+    }
+    return undefined;
   },
 
-  create: (todo: TodoItem): void => {
-    todos.push(todo);
+  create: async (todoData: TodoItem): Promise<string> => {
+    // Use the ID from the object
+    const docRef = doc(db, "todos", todoData.id); // set custom doc id
+    await setDoc(docRef, {
+      ...todoData,
+      createdAt: new Date().toISOString(), // optional, override timestamp
+    });
+    return docRef.id;
   },
 
-  update: (id: string, updatedTodo: Partial<TodoItem>): boolean => {
-    const index = todos.findIndex(todo => todo.id === id);
-    if (index === -1) return false;
-    
-    todos[index] = { ...todos[index], ...updatedTodo };
-    return true;
+  update: async (
+    id: string,
+    updatedTodo: Partial<TodoItem>
+  ): Promise<boolean> => {
+    try {
+      const docRef = doc(db, COLLECTION_NAME, id);
+      await updateDoc(docRef, updatedTodo);
+      return true;
+    } catch (error) {
+      return false;
+    }
   },
 
-  delete: (id: string): boolean => {
-    const index = todos.findIndex(todo => todo.id === id);
-    if (index === -1) return false;
-    
-    todos.splice(index, 1);
-    return true;
+  delete: async (id: string): Promise<boolean> => {
+    try {
+      await deleteDoc(doc(db, COLLECTION_NAME, id));
+      return true;
+    } catch (error) {
+      return false;
+    }
   },
 
-  exists: (id: string): boolean => {
-    return todos.some(todo => todo.id === id);
-  }
+  exists: async (id: string): Promise<boolean> => {
+    const docRef = doc(db, COLLECTION_NAME, id);
+    const docSnap = await getDoc(docRef);
+    return docSnap.exists();
+  },
 };

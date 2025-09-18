@@ -40,7 +40,8 @@ export default function Home() {
     const fetchTodos = async () => {
       try {
         const res = await fetch("/api/todo");
-        const data: Todo[] = await res.json();
+        var data: Todo[] = await res.json();
+
         setTodos(data.map((todo) => ({ ...todo, status: "viewing" as const })));
       } catch (error) {
         console.error("Failed to fetch todos:", error);
@@ -292,7 +293,11 @@ export default function Home() {
                       className="border rounded px-2 py-1"
                     />
                   ) : (
-                    <span className={`text-gray-800 break-words ${todo.isCompleted ? 'line-through text-gray-500' : ''}`}>
+                    <span
+                      className={`text-gray-800 break-words ${
+                        todo.isCompleted ? "line-through text-gray-500" : ""
+                      }`}
+                    >
                       {todo.todo}
                     </span>
                   )}
