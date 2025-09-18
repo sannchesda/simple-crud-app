@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import SimpleModal from "./components/SimpleModal";
 import SimpleButton from "./components/SimpleButton";
+import { collection, onSnapshot } from "firebase/firestore";
+import { db } from "./firebase";
 
 interface Todo {
   id: string;
@@ -37,20 +39,24 @@ export default function Home() {
   // init state
   useEffect(() => {
     setStatus("loading");
-    const fetchTodos = async () => {
-      try {
-        const res = await fetch("/api/todo");
-        var data: Todo[] = await res.json();
-
-        setTodos(data.map((todo) => ({ ...todo, status: "viewing" as const })));
-      } catch (error) {
+    const unsub = onSnapshot(
+      collection(db, "todos"),
+      (snapshot) => {
+        const data = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+          status: "viewing" as const,
+        })) as Todo[];
+        setTodos(data);
+        setStatus("done");
+      },
+      (error) => {
         console.error("Failed to fetch todos:", error);
         setStatus("error");
-      } finally {
-        setStatus("done");
       }
-    };
-    fetchTodos();
+    );
+
+    return () => unsub(); // cleanup on unmount
   }, []);
 
   // methods
@@ -82,10 +88,6 @@ export default function Home() {
       });
 
       if (response.ok) {
-        // Refresh the todos list from the server
-        const res = await fetch("/api/todo");
-        const data: Todo[] = await res.json();
-        setTodos(data.map((todo) => ({ ...todo, status: "viewing" as const })));
         setInput("");
         setFilter("");
       } else {
@@ -111,12 +113,7 @@ export default function Home() {
         method: "DELETE",
       });
 
-      if (response.ok) {
-        // Refresh the todos list from the server
-        const res = await fetch("/api/todo");
-        const data: Todo[] = await res.json();
-        setTodos(data.map((todo) => ({ ...todo, status: "viewing" as const })));
-      } else {
+      if (!response.ok) {
         console.error("Failed to delete todo");
       }
     } catch (error) {
@@ -148,12 +145,7 @@ export default function Home() {
         }),
       });
 
-      if (response.ok) {
-        // Refresh the todos list from the server
-        const res = await fetch("/api/todo");
-        const data: Todo[] = await res.json();
-        setTodos(data.map((todo) => ({ ...todo, status: "viewing" as const })));
-      } else {
+      if (!response.ok) {
         console.error("Failed to update todo");
       }
     } catch (error) {
@@ -161,13 +153,6 @@ export default function Home() {
     } finally {
       setLoadingStates((prev) => ({ ...prev, [loadingKey]: false }));
     }
-  };
-
-  const startEditing = (index: number) => {
-    const updated = [...todos];
-    updated[index].status = "editing";
-    updated[index].draft = updated[index].todo; // copy original text
-    setTodos(updated);
   };
 
   const toggleComplete = async (index: number) => {
@@ -192,12 +177,7 @@ export default function Home() {
         }),
       });
 
-      if (response.ok) {
-        // Refresh the todos list from the server
-        const res = await fetch("/api/todo");
-        const data: Todo[] = await res.json();
-        setTodos(data.map((todo) => ({ ...todo, status: "viewing" as const })));
-      } else {
+      if (!response.ok) {
         console.error("Failed to toggle todo completion");
       }
     } catch (error) {
