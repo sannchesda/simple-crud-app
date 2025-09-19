@@ -127,6 +127,16 @@ export default function Home() {
     const todoToUpdate = todos[index];
     const loadingKey = `editing-${todoToUpdate.id}`;
 
+    if (newTodoText.trim() === todoToUpdate.todo.trim()) {
+      setTodos((prev) => {
+        const updated = [...prev];
+        updated[index].status = "viewing";
+        updated[index].draft = undefined;
+        return updated;
+      });
+      return;
+    }
+
     if (loadingStates[loadingKey]) return;
 
     try {
